@@ -74,4 +74,15 @@ app.post("/creategroup", authUser, (req, res, next) => {
 
 });
 
+app.get("/groups", authUser, (req, res, next) => {
+    pool.query("SELECT * FROM groups INNER JOIN groupMembers ON groupMembers.userID=$1::text AND groups.groupID=groupMembers.groupID", [req.user.userid], (err, results) => {
+        if (err) return next(err);
+        
+        res.send({
+            status: "success",
+            groups: results.rows
+        });
+    });
+});
+
 app.listen(8080);
