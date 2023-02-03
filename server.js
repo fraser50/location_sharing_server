@@ -1,6 +1,7 @@
 const express = require("express");
 const pg = require("pg");
 const cookieParser = require("cookie-parser");
+const crypto = require("crypto");
 
 require("dotenv").config();
 
@@ -26,10 +27,51 @@ function authUser(req, res, next) {
 }
 
 const app = express();
+app.use(express.json());
 app.use(cookieParser());
 
 app.get("/", authUser, (req, res) => {
     res.send("User ID: " + req.user.userid);
+});
+
+app.post("/creategroup", authUser, (req, res, next) => {
+    // TODO: Validate input (perhaps using express-jsonschema)
+
+    crypto.randomBytes(32, (err, buf) => {
+        if (err) return next(err);
+
+        var groupID = buf.toString("hex");
+
+        pool.query("INSERT INTO groups (groupID,groupName,groupDescription) VALUES ($1::text,$2::text,$3::text)", [groupID, req.body.name, req.body.desc], (err, results) => {
+            if (err) return next(err);
+
+            if (results.rowCount == 1) {
+                pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, groupID], (err, results) => {
+                    if (err) return next(err);
+
+                    if (results.rowCount == 1) {
+                        res.send({
+                            status: "success",
+                            groupID: groupID
+                        });
+
+                    } else {
+                        res.send({
+                            status: "failure",
+                            desc: "Failed to insert member into the group"
+                        });
+                    }
+                });
+
+            } else {
+                res.send({
+                    status: "failure",
+                    desc: "Failed to insert group into database"
+                });
+            }
+        });
+    });
+
 });
 
 app.listen(8080);
