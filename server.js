@@ -85,4 +85,47 @@ app.get("/groups", authUser, (req, res, next) => {
     });
 });
 
+// Get group information and member list (will want to include location for each later)
+app.get("/groups/:groupID", authUser, (req, res, next) => {
+    pool.query("SELECT * FROM groups WHERE groupID=$1::text", [req.params.groupID], (err, results1) => {
+        if (err) return next(err);
+
+        if (results1.rowCount == 0) {
+            return res.send({
+                status: "failure",
+                desc: "Requested group does not exist"
+            });
+        }
+
+        pool.query("SELECT * FROM groupMembers WHERE groupID=$1::text", [req.params.groupID], (err, results2) => {
+            if (err) return next(err);
+
+            var members = results2.rows;
+            
+            // TODO: Check if the requesting user is in the group in a better way
+            var authorised = false;
+
+            members.forEach((value) => {
+                if (value.userid == req.user.userid) {
+                    authorised = true;
+                }
+            });
+
+            if (!authorised) {
+                return res.send({
+                    status: "failure",
+                    desc: "Access is denied"
+                });
+            }
+
+            res.send({
+                status: "success",
+                info: results1.rows,
+                members: members
+            });
+        });
+
+    });
+});
+
 app.listen(8080);
