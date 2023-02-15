@@ -2,8 +2,11 @@ const express = require("express");
 const pg = require("pg");
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
+const schema = require("./schema");
 
 require("dotenv").config();
+
+var validate = require("express-jsonschema").validate;
 
 const pool = new pg.Pool();
 
@@ -37,7 +40,7 @@ app.get("/", authUser, (req, res) => {
     });
 });
 
-app.post("/creategroup", authUser, (req, res, next) => {
+app.post("/creategroup", authUser, validate({body: schema.CreateGroupSchema}), (req, res, next) => {
     // TODO: Validate input (perhaps using express-jsonschema)
 
     crypto.randomBytes(32, (err, buf) => {
