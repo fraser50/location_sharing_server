@@ -15,4 +15,50 @@ var CreateGroupSchema = {
     }
 };
 
+// Request schemas
+
+var FullRequestSchema = {
+    type: "object",
+    properties: {
+        type: {
+            type: "string",
+            required: true
+        },
+
+        body: {
+            type: "object",
+            required: true
+        }
+    }
+};
+
+var AuthRequestSchema = {
+    type: "object",
+    properties: {
+        authKey: {
+            type: "string",
+            required: true
+        }
+    }
+};
+
+var LocationRequestSchema = {
+    type: "object",
+    properties: {
+        longitude: {
+            type: "number",
+            required: true
+        },
+
+        latitude: {
+            type: "number",
+            required: true
+        }
+    }
+};
+
 exports.CreateGroupSchema = CreateGroupSchema;
+
+exports.FullRequestSchema = FullRequestSchema;
+exports.AuthRequestSchema = AuthRequestSchema;
+exports.LocationRequestSchema = LocationRequestSchema;

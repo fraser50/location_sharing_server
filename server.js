@@ -3,6 +3,11 @@ const pg = require("pg");
 const cookieParser = require("cookie-parser");
 const crypto = require("crypto");
 const schema = require("./schema");
+//const { Server } = require("socket.io");
+const { WebSocketServer } = require("ws");
+const { createServer } = require("http");
+const Validator = require("jsonschema").Validator;
+const v = new Validator();
 
 require("dotenv").config();
 
@@ -32,6 +37,103 @@ function authUser(req, res, next) {
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+const httpServer = createServer(app);
+
+var wss = new WebSocketServer({server: httpServer});
+
+//const io = new Server(httpServer, {});
+
+function formFullResponse(type, body) {
+    return JSON.stringify({
+        responsible_req: type,
+        body: body
+    });
+}
+
+var requestMap = {
+    "auth": schema.sch
+}
+
+wss.on("connection", (socket) => {
+    console.log("WebSocket connection extablished");
+    socket.userid == null;
+
+    socket.on("message", (data, isBinary) => {
+        //console.log(typeof data);
+        //console.log(data);
+        //console.log(isBinary);
+        if (isBinary) return;
+
+        console.log(data.toString());
+
+        var request;
+        try {
+            request = JSON.parse(data.toString());
+
+        } catch {
+            return;
+        }
+
+        if (v.validate(request, schema.FullRequestSchema).valid) {
+            // Only permit the auth type if the socket has not logged in.
+            if (socket.userid == null && request.type != "auth") {
+                socket.send(formFullResponse(request.type, {status:"failure", reason: "no_auth"}));
+                return;
+            }
+
+            var body = request.body;
+            switch (request.type) {
+                case "auth":
+                    if (socket.userid != null) {
+                        socket.send(formFullResponse("auth", {status: "failure", reason: "auth_already_completed"}));
+                        return;
+                    }
+            
+                    pool.query("SELECT userID,studyType,lastSeen,defaultName,userType FROM users where authKey=$1::text", [body.authKey], (err, results) => {
+                        if (err) {
+                            socket.send(formFullResponse("auth", {status: "error"}));
+                            return;
+                        }
+            
+                        if (results.rowCount == 0) {
+                            socket.send(formFullResponse("auth", {status: "failure", reason: "bad_key"}));
+            
+                        } else {
+                            socket.userid = results.rows[0].userid;
+                            socket.usertype = results.rows[0].usertype;
+                            socket.studytype = results.rows[0].studytype;
+                            socket.send(formFullResponse("auth", {status: "success", user: results[0]}));
+                        }
+                    });
+                    break;
+
+                case "location":
+                    crypto.randomBytes(32, (err, buf) => {
+                        if (err) {
+                            socket.send(formFullResponse("location", {status: "error"}));
+                            return;
+                        }
+
+                        var randStr = buf.toString("hex");
+
+                        pool.query("INSERT INTO previousPositions (positionID,userID,recordedPoint) VALUES ($1::text,$2::text,POINT($3,$4))", [randStr, socket.userid, body.longitude, body.latitude]);
+                    });
+
+                    break;
+
+                default:
+                    console.log("Unknown request type '" + request.type + "'");
+                    break;
+            }
+        }
+    });
+
+    socket.on("location_upload", ({longitude, latitude, localTime, batteryCharging, batteryPercentage}) => {
+        
+
+    });
+
+});
 
 app.get("/", authUser, (req, res) => {
     res.send({
@@ -134,4 +236,5 @@ app.get("/groups/:groupID", authUser, (req, res, next) => {
     });
 });
 
-app.listen(8080);
+httpServer.listen(8080);
+//app.listen(8080);
