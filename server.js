@@ -128,11 +128,6 @@ wss.on("connection", (socket) => {
         }
     });
 
-    socket.on("location_upload", ({longitude, latitude, localTime, batteryCharging, batteryPercentage}) => {
-        
-
-    });
-
 });
 
 app.get("/", authUser, (req, res) => {
