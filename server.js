@@ -41,6 +41,8 @@ const httpServer = createServer(app);
 
 var wss = new WebSocketServer({server: httpServer});
 
+var sockets = [];
+
 //const io = new Server(httpServer, {});
 
 function formFullResponse(type, body) {
@@ -57,6 +59,8 @@ var requestMap = {
 wss.on("connection", (socket) => {
     console.log("WebSocket connection extablished");
     socket.userid == null;
+
+    sockets.push(socket);
 
     socket.on("message", (data, isBinary) => {
         //console.log(typeof data);
@@ -228,6 +232,25 @@ app.get("/groups/:groupID", authUser, (req, res, next) => {
             });
         });
 
+    });
+});
+
+app.get("/groups/:groupID/locations", authUser, (req, res, next) => {
+    // TODO: Make this work for more than a single group, the goal is to show the locations of people no matter what group they're in (as long as the requester is a member of that group)
+
+    pool.query("SELECT users.userID,groupMembers.nickname,recordedPoint FROM users INNER JOIN groupMembers ON users.userID=groupMembers.userID AND groupMembers.groupID=$1::text INNER JOIN previousPositions ON users.userID=previousPositions.userID", [req.params.groupID], (err, results) => {
+        if (err) return next(err);
+
+        sockets.forEach((sock) => {
+            sock.send(formFullResponse("location_request", {}));
+        });
+
+        res.send({
+            status: "success",
+            members: results.rows
+        });
+
+        console.log(results.rows);
     });
 });
 
