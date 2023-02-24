@@ -42,6 +42,7 @@ const httpServer = createServer(app);
 var wss = new WebSocketServer({server: httpServer});
 
 var sockets = [];
+var userToSocket = {};
 
 //const io = new Server(httpServer, {});
 
@@ -59,13 +60,14 @@ var requestMap = {
 wss.on("connection", (socket) => {
     console.log("WebSocket connection extablished");
     socket.userid == null;
+    socket.groups = [];
 
     sockets.push(socket);
 
     socket.on("message", (data, isBinary) => {
-        //console.log(typeof data);
-        //console.log(data);
-        //console.log(isBinary);
+        console.log(typeof data);
+        console.log(data);
+        console.log(isBinary);
         if (isBinary) return;
 
         console.log(data.toString());
@@ -104,9 +106,19 @@ wss.on("connection", (socket) => {
             
                         } else {
                             socket.userid = results.rows[0].userid;
+                            userToSocket[socket.userid] = socket;
                             socket.usertype = results.rows[0].usertype;
                             socket.studytype = results.rows[0].studytype;
                             socket.send(formFullResponse("auth", {status: "success", user: results[0]}));
+
+                            pool.query("SELECT groupID FROM groupMembers WHERE userID=$1::text", [socket.userid], (err, results) => {
+                                if (err) {
+                                    socket.groups = [];
+                                    return;
+                                }
+
+                                socket.groups = results.rows;
+                            });
                         }
                     });
                     break;
@@ -120,7 +132,7 @@ wss.on("connection", (socket) => {
 
                         var randStr = buf.toString("hex");
 
-                        pool.query("INSERT INTO previousPositions (positionID,userID,recordedPoint) VALUES ($1::text,$2::text,POINT($3,$4))", [randStr, socket.userid, body.longitude, body.latitude]);
+                        pool.query("INSERT INTO previousPositions (positionID,userID,recordedPoint) VALUES ($1::text,$2::text,POINT($3,$4))", [randStr, socket.userid, body.latitude, body.longitude]);
                     });
 
                     break;
@@ -130,6 +142,11 @@ wss.on("connection", (socket) => {
                     break;
             }
         }
+    });
+
+    socket.on("close", () => {
+        console.log("Closing socket");
+        socket.close();
     });
 
 });
@@ -251,6 +268,56 @@ app.get("/groups/:groupID/locations", authUser, (req, res, next) => {
         });
 
         console.log(results.rows);
+    });
+});
+
+// Get the locations of all the users that share a group with the requestor
+app.get("/locations", authUser, (req, res, next) => {
+    pool.query("SELECT groupMembers.groupID,groupMembers.nickname,POINT(AVG(previousPositions.recordedPoint[0]),AVG(previousPositions.recordedPoint[1])),MAX(previousPositions.dateRecorded) AS date,users.userID FROM (SELECT * FROM groupMembers WHERE userID=$1::text) AS groupMembers INNER JOIN previousPositions ON previousPositions.userID=groupMembers.userID INNER JOIN users ON users.userID=groupMembers.userID GROUP BY groupID,nickname,users.userID", [req.user.userid], (err, results) => {
+        if (err) return next(err);
+
+        res.send({
+            status: "success",
+            members: results.rows
+        });
+
+        // List of users that have sent a location update within a suitable time period
+        var exemptUsers = [];
+        
+        // List of groups to notify
+        var affectedGroups;
+
+        pool.query("SELECT groupID FROM groupMembers WHERE userID=$1::text", [req.user.userid], (err, results2) => {
+            if (err) return next(err);
+
+            affectedGroups = results2.rows.map((elem) => elem.groupid);
+            console.log(affectedGroups);
+
+            results.rows.forEach((member) => {
+                // TODO: Exclude members who have sent a location update recently.
+            });
+
+            sockets.forEach((socket) => {
+                console.log("Checking socket");
+                if (exemptUsers.indexOf(socket.userid) == -1) {
+                    userInSuitableGroups = false;
+
+                    socket.groups.forEach((group) => {
+                        console.log(group);
+                        if (affectedGroups.indexOf(group.groupid) != -1) {
+                            userInSuitableGroups = true;
+                        }
+                    });
+
+                    if (userInSuitableGroups) {
+                        console.log("Send request");
+                        socket.send(formFullResponse("location_request", {}));
+                    }
+                }
+            });
+        });
+
+        
     });
 });
 
