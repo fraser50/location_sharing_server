@@ -124,6 +124,7 @@ wss.on("connection", (socket) => {
                     break;
 
                 case "location":
+                    // TODO: Validate body
                     crypto.randomBytes(32, (err, buf) => {
                         if (err) {
                             socket.send(formFullResponse("location", {status: "error"}));
@@ -159,8 +160,6 @@ app.get("/", authUser, (req, res) => {
 });
 
 app.post("/creategroup", authUser, validate({body: schema.CreateGroupSchema}), (req, res, next) => {
-    // TODO: Validate input (perhaps using express-jsonschema)
-
     crypto.randomBytes(32, (err, buf) => {
         if (err) return next(err);
 
@@ -273,7 +272,7 @@ app.get("/groups/:groupID/locations", authUser, (req, res, next) => {
 
 // Get the locations of all the users that share a group with the requestor
 app.get("/locations", authUser, (req, res, next) => {
-    pool.query("SELECT groupMembers.groupID,groupMembers.nickname,POINT(AVG(previousPositions.recordedPoint[0]),AVG(previousPositions.recordedPoint[1])),MAX(previousPositions.dateRecorded) AS date,users.userID FROM (SELECT * FROM groupMembers WHERE userID=$1::text) AS groupMembers INNER JOIN previousPositions ON previousPositions.userID=groupMembers.userID INNER JOIN users ON users.userID=groupMembers.userID GROUP BY groupID,nickname,users.userID", [req.user.userid], (err, results) => {
+    pool.query("SELECT DISTINCT ON (groupMembers.groupID) groupMembers.groupID,groupMembers.nickname,previousPositions.recordedPoint AS point,previousPositions.dateRecorded AS date,users.userID FROM (SELECT * FROM groupMembers WHERE userID=$1::text) AS groupMembers INNER JOIN previousPositions ON previousPositions.userID=groupMembers.userID INNER JOIN users ON users.userID=groupMembers.userID ORDER BY groupMembers.groupID,date DESC", [req.user.userid], (err, results) => {
         if (err) return next(err);
 
         res.send({
