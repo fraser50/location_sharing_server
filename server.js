@@ -7,6 +7,7 @@ const schema = require("./schema");
 const { WebSocketServer } = require("ws");
 const { createServer } = require("http");
 const Validator = require("jsonschema").Validator;
+const path = require("path");
 const v = new Validator();
 
 require("dotenv").config();
@@ -65,9 +66,6 @@ wss.on("connection", (socket) => {
     sockets.push(socket);
 
     socket.on("message", (data, isBinary) => {
-        console.log(typeof data);
-        console.log(data);
-        console.log(isBinary);
         if (isBinary) return;
 
         console.log(data.toString());
@@ -266,7 +264,6 @@ app.get("/groups/:groupID/locations", authUser, (req, res, next) => {
             members: results.rows
         });
 
-        console.log(results.rows);
     });
 });
 
@@ -290,26 +287,22 @@ app.get("/locations", authUser, (req, res, next) => {
             if (err) return next(err);
 
             affectedGroups = results2.rows.map((elem) => elem.groupid);
-            console.log(affectedGroups);
 
             results.rows.forEach((member) => {
                 // TODO: Exclude members who have sent a location update recently.
             });
 
             sockets.forEach((socket) => {
-                console.log("Checking socket");
                 if (exemptUsers.indexOf(socket.userid) == -1) {
                     userInSuitableGroups = false;
 
                     socket.groups.forEach((group) => {
-                        console.log(group);
                         if (affectedGroups.indexOf(group.groupid) != -1) {
                             userInSuitableGroups = true;
                         }
                     });
 
                     if (userInSuitableGroups) {
-                        console.log("Send request");
                         socket.send(formFullResponse("location_request", {}));
                     }
                 }
@@ -319,6 +312,24 @@ app.get("/locations", authUser, (req, res, next) => {
         
     });
 });
+
+app.get("/versioninfo", (req, res, next) => {
+    res.send({
+        status: "success",
+        version: 0,
+        versionZIP: "latest.zip"
+    });
+});
+
+app.get("/version.zip", (req, res, next) => {
+    res.sendFile(path.join(__dirname, "version.zip"));
+});
+
+//setInterval(() => {
+//    sockets.forEach((socket) => {
+//        socket.send(formFullResponse("location_request", {}));
+//    });
+//}, 15000);
 
 httpServer.listen(8080);
 //app.listen(8080);
