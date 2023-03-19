@@ -58,6 +58,18 @@ var requestMap = {
     "auth": schema.sch
 }
 
+var inviteCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+
+function generateRandomStr(length) {
+    var randStr = "";
+
+    for (let i=0; i<length; i++) {
+        randStr += inviteCharacters.charAt(Math.floor(Math.random() * inviteCharacters.length));
+    }
+
+    return randStr;
+}
+
 wss.on("connection", (socket) => {
     console.log("WebSocket connection extablished");
     socket.userid == null;
@@ -331,18 +343,48 @@ app.get("/version.zip", (req, res, next) => {
     res.sendFile(path.join(__dirname, "version.zip"));
 });
 
-app.get("/joingroup/:groupID", authUser, (req, res, next) => {
-    pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, req.params.groupID], (err, results) => {
-        console.log(err);
-        if (err) {
+app.get("/joingroup/:inviteID", authUser, (req, res, next) => {
+    pool.query("SELECT * FROM groupInvites WHERE inviteID=$1::text", [req.params.inviteID], (err, results) => {
+        if (err) return next(err);
+
+        if (results.rowCount == 0) {
             return res.send({
                 status: "failure",
-                desc: "User is already a member or that group does not exist"
+                desc: "Invite does not exist"
+            });
+        }
+
+        pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, results.rows[0].groupid], (err, results) => {
+            if (err) {
+                return res.send({
+                    status: "failure",
+                    desc: "User is already a member or that group does not exist"
+                });
+            }
+    
+            res.send({
+                status: "success"
+            });
+        });
+
+    });
+});
+
+app.get("/createinvite/:groupID", authUser, (req, res, next) => {
+    var inviteID = generateRandomStr(6);
+
+    pool.query("INSERT INTO groupInvites (inviteID,groupID) VALUES ($1::text,$2::text)", [inviteID, req.params.groupID], (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.send({
+                status: "failure",
+                desc: "Group invite requested for doesn't exist"
             });
         }
 
         res.send({
-            status: "success"
+            status: "success",
+            inviteID: inviteID
         });
     });
 });
