@@ -122,6 +122,12 @@ wss.on("connection", (socket) => {
                     break;
 
                 case "location":
+                    if (body.onCampus != null && body.onCampus != undefined) {
+                        if (!body.onCampus) {
+                            console.log("Empty location update");
+                            break;
+                        }
+                    }
                     // TODO: Validate body
                     crypto.randomBytes(32, (err, buf) => {
                         if (err) {
@@ -323,6 +329,22 @@ app.get("/versioninfo", (req, res, next) => {
 
 app.get("/version.zip", (req, res, next) => {
     res.sendFile(path.join(__dirname, "version.zip"));
+});
+
+app.get("/joingroup/:groupID", authUser, (req, res, next) => {
+    pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, req.params.groupID], (err, results) => {
+        console.log(err);
+        if (err) {
+            return res.send({
+                status: "failure",
+                desc: "User is already a member or that group does not exist"
+            });
+        }
+
+        res.send({
+            status: "success"
+        });
+    });
 });
 
 //setInterval(() => {
