@@ -389,6 +389,16 @@ app.get("/createinvite/:groupID", authUser, (req, res, next) => {
     });
 });
 
+app.get("/leavegroup/:groupID", authUser, (req, res, next) => {
+    pool.query("DELETE FROM groupMembers WHERE userID=$1::text AND groupID=$2::text", [req.user.userid, req.params.groupID], (err, results) => {
+        if (err) return next(err);
+
+        res.send({
+            status: "success"
+        });
+    });
+});
+
 //setInterval(() => {
 //    sockets.forEach((socket) => {
 //        socket.send(formFullResponse("location_request", {}));
