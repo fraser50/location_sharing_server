@@ -332,11 +332,7 @@ app.get("/locations", authUser, (req, res, next) => {
 });
 
 app.get("/versioninfo", (req, res, next) => {
-    res.send({
-        status: "success",
-        version: 0,
-        versionZIP: "latest.zip"
-    });
+    res.sendFile(path.join(__dirname, "versioninfo.json"));
 });
 
 app.get("/version.zip", (req, res, next) => {
