@@ -181,11 +181,11 @@ app.post("/creategroup", authUser, validate({body: schema.CreateGroupSchema}), (
 
         var groupID = buf.toString("hex");
 
-        pool.query("INSERT INTO groups (groupID,groupName,groupDescription,nickname) VALUES ($1::text,$2::text,$3::text,$4::text)", [groupID, req.body.name, req.body.desc, "Owner"], (err, results) => {
+        pool.query("INSERT INTO groups (groupID,groupName,groupDescription) VALUES ($1::text,$2::text,$3::text)", [groupID, req.body.name, req.body.desc], (err, results) => {
             if (err) return next(err);
 
             if (results.rowCount == 1) {
-                pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, groupID], (err, results) => {
+                pool.query("INSERT INTO groupMembers (userID,groupID,nickname) VALUES ($1::text,$2::text,$3::text)", [req.user.userid, groupID, "Owner"], (err, results) => {
                     if (err) return next(err);
 
                     if (results.rowCount == 1) {
