@@ -181,7 +181,7 @@ app.post("/creategroup", authUser, validate({body: schema.CreateGroupSchema}), (
 
         var groupID = buf.toString("hex");
 
-        pool.query("INSERT INTO groups (groupID,groupName,groupDescription) VALUES ($1::text,$2::text,$3::text)", [groupID, req.body.name, req.body.desc], (err, results) => {
+        pool.query("INSERT INTO groups (groupID,groupName,groupDescription,nickname) VALUES ($1::text,$2::text,$3::text,$4::text)", [groupID, req.body.name, req.body.desc, "Owner"], (err, results) => {
             if (err) return next(err);
 
             if (results.rowCount == 1) {
@@ -343,7 +343,7 @@ app.get("/version.zip", (req, res, next) => {
     res.sendFile(path.join(__dirname, "version.zip"));
 });
 
-app.get("/joingroup/:inviteID", authUser, (req, res, next) => {
+app.post("/joingroup/:inviteID", authUser, validate({body: schema.JoinGroupSchema}), (req, res, next) => {
     pool.query("SELECT * FROM groupInvites WHERE inviteID=$1::text", [req.params.inviteID], (err, results) => {
         if (err) return next(err);
 
@@ -354,7 +354,9 @@ app.get("/joingroup/:inviteID", authUser, (req, res, next) => {
             });
         }
 
-        pool.query("INSERT INTO groupMembers (userID,groupID) VALUES ($1::text,$2::text)", [req.user.userid, results.rows[0].groupid], (err, results) => {
+        var nickname = req.body.nickname != undefined ? req.body.nickname : "User" + (Math.random() * 1000);
+
+        pool.query("INSERT INTO groupMembers (userID,groupID,nickname) VALUES ($1::text,$2::text,$3::text)", [req.user.userid, results.rows[0].groupid,nickname], (err, results) => {
             if (err) {
                 return res.send({
                     status: "failure",
@@ -370,7 +372,7 @@ app.get("/joingroup/:inviteID", authUser, (req, res, next) => {
     });
 });
 
-app.get("/createinvite/:groupID", authUser, (req, res, next) => {
+app.post("/createinvite/:groupID", authUser, (req, res, next) => {
     var inviteID = generateRandomStr(6);
 
     pool.query("INSERT INTO groupInvites (inviteID,groupID) VALUES ($1::text,$2::text)", [inviteID, req.params.groupID], (err, results) => {

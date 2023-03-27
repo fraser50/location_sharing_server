@@ -57,8 +57,19 @@ var LocationRequestSchema = {
     }
 };
 
+var JoinGroupSchema = {
+    type: "object",
+    properties: {
+        nickname: {
+            type: "string",
+            required: false
+        }
+    }
+};
+
 exports.CreateGroupSchema = CreateGroupSchema;
 
 exports.FullRequestSchema = FullRequestSchema;
 exports.AuthRequestSchema = AuthRequestSchema;
 exports.LocationRequestSchema = LocationRequestSchema;
+exports.JoinGroupSchema = JoinGroupSchema;
