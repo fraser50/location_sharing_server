@@ -287,7 +287,7 @@ app.get("/groups/:groupID/locations", authUser, (req, res, next) => {
 
 // Get the locations of all the users that share a group with the requestor
 app.get("/locations", authUser, (req, res, next) => {
-    pool.query("SELECT DISTINCT ON (groupMembers.groupID) groupMembers.groupID,groupMembers.nickname,previousPositions.recordedPoint AS point,previousPositions.dateRecorded AS date,users.userID FROM (SELECT * FROM groupMembers WHERE userID=$1::text) AS groupMembers INNER JOIN previousPositions ON previousPositions.userID=groupMembers.userID INNER JOIN users ON users.userID=groupMembers.userID ORDER BY groupMembers.groupID,date DESC", [req.user.userid], (err, results) => {
+    pool.query("SELECT DISTINCT ON (groupMembers.groupID) groupMembers.groupID,groupMembers.nickname,previousPositions.recordedPoint AS point,previousPositions.dateRecorded AS date,users.userID FROM (SELECT * FROM groupMembers WHERE userID=$1::text) AS groupMembers INNER JOIN previousPositions ON previousPositions.userID=groupMembers.userID INNER JOIN users ON users.userID=groupMembers.userID WHERE users.userID!=$2::text ORDER BY groupMembers.groupID,date DESC", [req.user.userid, req.user.userid], (err, results) => {
         if (err) return next(err);
 
         res.send({
