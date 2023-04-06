@@ -321,6 +321,8 @@ app.get("/locations", authUser, (req, res, next) => {
                     });
 
                     if (userInSuitableGroups) {
+                        // Don't send request to the user who requested the locations
+                        if (socket.userid == req.user.userid) return;
                         socket.send(formFullResponse("location_request", {}));
                     }
                 }
