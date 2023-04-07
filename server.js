@@ -70,6 +70,16 @@ function generateRandomStr(length) {
     return randStr;
 }
 
+function getGroups(userid) {
+    pool.query("SELECT groupID FROM groupMembers WHERE userID=$1::text", [userid], (err, results) => {
+        if (err) {
+            return [];
+        }
+
+        return results.rows;
+    });
+}
+
 wss.on("connection", (socket) => {
     console.log("WebSocket connection extablished");
     socket.userid == null;
@@ -121,14 +131,7 @@ wss.on("connection", (socket) => {
                             socket.studytype = results.rows[0].studytype;
                             socket.send(formFullResponse("auth", {status: "success", user: results[0]}));
 
-                            pool.query("SELECT groupID FROM groupMembers WHERE userID=$1::text", [socket.userid], (err, results) => {
-                                if (err) {
-                                    socket.groups = [];
-                                    return;
-                                }
-
-                                socket.groups = results.rows;
-                            });
+                            socket.groups = getGroups(socket.userid);
                         }
                     });
                     break;
@@ -192,6 +195,12 @@ app.post("/creategroup", authUser, validate({body: schema.CreateGroupSchema}), (
                         res.send({
                             status: "success",
                             groupID: groupID
+                        });
+
+                        sockets.forEach((sock) => {
+                            if (sock.userid == req.user.userid) {
+                                sock.groups = getGroups(req.user.userid);
+                            }
                         });
 
                     } else {
@@ -364,6 +373,12 @@ app.post("/joingroup/:inviteID", authUser, validate({body: schema.JoinGroupSchem
     
             res.send({
                 status: "success"
+            });
+
+            sockets.forEach((sock) => {
+                if (sock.userid == req.user.userid) {
+                    sock.groups = getGroups(req.user.userid);
+                }
             });
         });
 
