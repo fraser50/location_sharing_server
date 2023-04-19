@@ -142,6 +142,10 @@ wss.on("connection", (socket) => {
                             console.log("Empty location update");
                             break;
                         }
+                        if (body.latitude == 0 && body.longitude == 0) {
+                            console.log("No GPS fix");
+                            break;
+                        }
                     }
                     // TODO: Validate body
                     crypto.randomBytes(32, (err, buf) => {
