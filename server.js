@@ -17,7 +17,6 @@ var validate = require("express-jsonschema").validate;
 const pool = new pg.Pool();
 
 function authUser(req, res, next) {
-    // TODO: probably want to return errors in JSON later
     if (typeof req.cookies.key != "string") return res.send({status: "failure", reason: "Login key was not provided!"});
 
     var authKey = req.cookies.key;
